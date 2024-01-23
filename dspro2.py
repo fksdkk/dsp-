@@ -1,0 +1,141 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 96,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "日付: 9/1, スコア: 5-0\n",
+      "日付: 2, スコア: 3-5\n",
+      "日付: 3, スコア: 4-5\n",
+      "日付: 5, スコア: 7-1\n",
+      "日付: 6, スコア: 0-3\n",
+      "日付: なし, スコア: なし\n",
+      "日付: 7, スコア: 3-7\n",
+      "日付: 9, スコア: 0-4\n",
+      "日付: 10, スコア: 0-2\n",
+      "日付: 12, スコア: 5-3\n",
+      "日付: 13, スコア: 3-5\n",
+      "日付: なし, スコア: なし\n",
+      "日付: 16, スコア: 5-1\n",
+      "日付: 17, スコア: 2-3\n",
+      "日付: 18, スコア: 2-1\n",
+      "日付: 19, スコア: 2-3\n",
+      "日付: 20, スコア: 2-6\n",
+      "日付: なし, スコア: なし\n",
+      "日付: 21, スコア: 2-4\n",
+      "日付: 23, スコア: 1-2\n",
+      "日付: 24, スコア: 6-7\n",
+      "日付: 25, スコア: 1-10\n",
+      "日付: 26, スコア: 0-7\n",
+      "日付: なし, スコア: なし\n",
+      "日付: 27, スコア: 4-2\n",
+      "日付: 28, スコア: 2-9\n",
+      "日付: 30, スコア: 5-4\n"
+     ]
+    }
+   ],
+   "source": [
+    "import requests\n",
+    "from bs4 import BeautifulSoup\n",
+    "# ウェブページのURL\n",
+    "url = 'https://npb.jp/bis/teams/results_m_09.html'\n",
+    "# ウェブページのHTMLを取得\n",
+    "response = requests.get(url)\n",
+    "html_content = response.text\n",
+    "# HTMLを解析してBeautifulSoupオブジェクトを作成\n",
+    "soup = BeautifulSoup(html_content, 'html.parser')\n",
+    "# 対象の試合データを抽出\n",
+    "target_rows = soup.find_all('tr', class_='terlist')\n",
+    "# 各試合データを取得して表示\n",
+    "for row in target_rows:\n",
+    "    # 日付を取得\n",
+    "    date_element = row.find('td', class_='termmdd')\n",
+    "    date = date_element.text if date_element else 'なし'\n",
+    "    # スコアを取得\n",
+    "    score = row.find_all('td')[6].text if len(row.find_all('td')) > 6 else 'なし'\n",
+    "    # 勝敗を取得\n",
+    "    result = row.find_all('td')[7].text if len(row.find_all('td')) > 7 else 'なし'\n",
+    "    # 表示\n",
+    "    print(f\"日付: {date}, スコア: {score}\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 98,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import requests\n",
+    "from bs4 import BeautifulSoup\n",
+    "import sqlite3\n",
+    "# ウェブページのURL\n",
+    "url = 'https://npb.jp/bis/teams/results_m_09.html'\n",
+    "# ウェブページのHTMLを取得\n",
+    "response = requests.get(url)\n",
+    "html_content = response.text\n",
+    "# HTMLを解析してBeautifulSoupオブジェクトを作成\n",
+    "soup = BeautifulSoup(html_content, 'html.parser')\n",
+    "# SQLiteデータベースファイルのパス\n",
+    "db_path = 'baseball_data.db'\n",
+    "# SQLite接続\n",
+    "conn = sqlite3.connect(db_path)\n",
+    "# テーブル作成SQL\n",
+    "create_table_sql = '''\n",
+    "CREATE TABLE IF NOT EXISTS baseball_results (\n",
+    "    id INTEGER PRIMARY KEY AUTOINCREMENT,\n",
+    "    date TEXT,\n",
+    "    score TEXT,\n",
+    "    result TEXT\n",
+    ");\n",
+    "'''\n",
+    "# SQL実行\n",
+    "conn.execute(create_table_sql)\n",
+    "# 対象の試合データを抽出\n",
+    "target_rows = soup.find_all('tr', class_='terlist')\n",
+    "# 各試合データを取得してデータベースに挿入\n",
+    "for row in target_rows:\n",
+    "    date_element = row.find('td', class_='termmdd')\n",
+    "    date = date_element.text if date_element else 'なし'\n",
+    "    score = row.find_all('td')[6].text if len(row.find_all('td')) > 6 else 'なし'\n",
+    "    result = row.find_all('td')[7].text if len(row.find_all('td')) > 7 else 'なし'\n",
+    "    # データベースに挿入するSQL\n",
+    "    insert_data_sql = f'''\n",
+    "    INSERT INTO baseball_results (date, score, result)\n",
+    "    VALUES (?, ?, ?);\n",
+    "    '''\n",
+    "    # SQL実行\n",
+    "    conn.execute(insert_data_sql, (date, score, result))\n",
+    "# 変更を保存\n",
+    "conn.commit()\n",
+    "# 接続を閉じる\n",
+    "conn.close()"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.9.6"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
